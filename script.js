@@ -1,13 +1,13 @@
 // ============================================================
-// JS Animations
+// JS Animations (Mode 1削除版)
 // ============================================================
 
 let container = document.getElementById("container");
-let canvas, ctx, renderer, scene, camera, torus;
+let canvas, ctx;
 
 let width = window.innerWidth;
 let height = window.innerHeight;
-let mode = 0; // 0〜4
+let mode = 0; // 0〜3の4モード
 let t = 0;
 
 // ============================================================
@@ -15,7 +15,7 @@ let t = 0;
 // ============================================================
 const switchButton = document.getElementById("switch");
 switchButton.onclick = () => {
-  mode = (mode + 1) % 5;
+  mode = (mode + 1) % 4; // 4モードでループ
   switchScene();
 };
 
@@ -32,43 +32,11 @@ function createCanvas() {
 }
 
 // ============================================================
-// Three.jsの初期化
-// ============================================================
-function initTorus() {
-  createCanvas(); // キャンバスを新しく作成し、Three.jsに渡す
-  renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
-  renderer.setSize(width, height);
-  scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-  camera.position.z = 5;
-
-  const geometry = new THREE.TorusKnotGeometry(1, 0.3, 256, 64);
-  const material = new THREE.MeshPhysicalMaterial({
-    color: 0x00ffff,
-    emissive: 0x0077ff,
-    metalness: 0.8,
-    roughness: 0.2,
-    clearcoat: 1.0,
-    emissiveIntensity: 2.0,
-  });
-  torus = new THREE.Mesh(geometry, material);
-  scene.add(torus);
-
-  const light = new THREE.PointLight(0xffffff, 2, 100);
-  light.position.set(10, 10, 10);
-  scene.add(light);
-}
-
-// ============================================================
 // モード別セットアップ
 // ============================================================
 function switchScene() {
   cleanup();
-  if (mode === 1) {
-    initTorus();
-  } else {
-    createCanvas();
-  }
+  createCanvas();
   console.log(`🌈 Scene switched to mode ${mode}`);
 }
 
@@ -76,7 +44,7 @@ function switchScene() {
 // 各モード別のデータ構造
 // ============================================================
 
-// 🌊 パーリンノイズ粒子群
+// 🌊 パーリンノイズ粒子群 (Mode 0)
 function noise(x, y, t) {
   return (Math.sin(x * 0.01 + t * 0.005) + Math.sin(y * 0.01 - t * 0.004)) * 0.5;
 }
@@ -103,15 +71,15 @@ class FlowParticle {
 }
 const flowParticles = Array.from({ length: 1000 }, () => new FlowParticle());
 
-// 🌈 マウス波紋
+// 🌈 マウス波紋 (Mode 1)
 const waves = [];
 window.addEventListener("mousemove", (e) => {
-  if (mode === 2) {
+  if (mode === 1) {
     waves.push({ x: e.clientX, y: e.clientY, r: 0, hue: Math.random() * 360 });
   }
 });
 
-// 🌀 渦
+// 🌀 渦 (Mode 2)
 class Vortex {
   constructor(cx, cy, s, hue) {
     this.cx = cx;
@@ -138,7 +106,7 @@ const vortices = [
   new Vortex(width * 0.5, height * 0.5, 180, 320),
 ];
 
-// ✨ 光の渦
+// ✨ 光の渦 (Mode 3)
 class SpiralParticle {
   constructor(angle, radius) {
     this.angle = angle;
@@ -181,24 +149,21 @@ function animate() {
   requestAnimationFrame(animate);
   t++;
 
-  if (mode !== 1 && ctx) {
+  if (ctx) {
     ctx.fillStyle = "rgba(0,0,0,0.1)";
     ctx.fillRect(0, 0, width, height);
   }
 
   switch (mode) {
     case 0:
-      flowParticles.forEach((p) => { p.update(t); p.draw(ctx); });
+      // パーリンノイズ粒子群
+      flowParticles.forEach((p) => { 
+        p.update(t); 
+        p.draw(ctx); 
+      });
       break;
     case 1:
-      if (renderer && torus && scene && camera) {
-        torus.rotation.x += 0.01;
-        torus.rotation.y += 0.015;
-        torus.scale.setScalar(1 + Math.sin(t * 0.05) * 0.2);
-        renderer.render(scene, camera);
-      }
-      break;
-    case 2:
+      // マウス波紋
       waves.forEach((w) => {
         w.r += 4;
         ctx.beginPath();
@@ -207,12 +172,21 @@ function animate() {
         ctx.lineWidth = 3;
         ctx.stroke();
       });
+      // 古い波紋を削除
+      while (waves.length > 0 && waves[0].r > 400) {
+        waves.shift();
+      }
       break;
-    case 3:
+    case 2:
+      // 渦
       vortices.forEach((v) => v.draw(ctx, t));
       break;
-    case 4:
-      spiralParticles.forEach((p) => { p.update(t); p.draw(ctx); });
+    case 3:
+      // 光の渦
+      spiralParticles.forEach((p) => { 
+        p.update(t); 
+        p.draw(ctx); 
+      });
       break;
   }
 }
@@ -221,18 +195,13 @@ function animate() {
 // リソースクリーンアップ
 // ============================================================
 function cleanup() {
-  if (renderer) {
-    renderer.dispose();
-    renderer.forceContextLoss();
-    renderer = null;
+  if (canvas && canvas.parentNode) {
+    canvas.remove();
   }
-  scene = null;
-  camera = null;
-  torus = null;
 }
 
 // ============================================================
 // 初期起動
 // ============================================================
-createCanvas();
+switchScene(); // 初回もswitchSceneを呼んで正しく初期化
 animate();
